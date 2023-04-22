@@ -1,0 +1,181 @@
+<!DOCTYPE HTML>
+<!--
+	If you're that curious about whether I made the website from scratch or not I got to admit that I definitely used a template from  html5up.net check them out!
+-->
+<html lang="fr">
+
+<head>
+	<title>Document prépa</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="stylesheet" href="assets/css/main.css" />
+	<noscript>
+		<link rel="stylesheet" href="assets/css/noscript.css" />
+	</noscript>
+</head>
+
+<body class="is-preload">
+	<!--Spinner-->
+	<div class="loader-wrapper">
+		<div class="lds-roller">
+			<div></div>
+			<div></div>
+			<div></div>
+			<div></div>
+			<div></div>
+			<div></div>
+			<div></div>
+			<div></div>
+		</div>
+	</div>
+	<script>
+		$(window).on("load",function(){
+			$(".load-wrapper").fadeOut("slow");
+		})
+	</script>
+	<!-- Wrapper-->
+	<div id="wrapper">
+
+		<!-- Nav -->
+		<nav id="nav">
+			<a href="#" class="icon solid fa-home"><span>Menu</span></a>
+			<a href="#work" class="icon solid fa-folder"><span>Documents</span></a>
+			<a href="#contact" class="icon solid fa-envelope"><span>Contact</span></a>
+			<a href="#other" class="icon solid fa-info"><span>Autres</span></a>
+		</nav>
+
+		<!-- Main -->
+		<div id="main">
+
+			<!-- Menu -->
+			<article id="home" class="panel intro">
+				<header>
+					<h1>Document prépa</h1>
+					<p>Proposé pour les élèves de 1ère et de 2ème année en cycle préparatoire des écoles d'ingénieur
+					</p>
+				</header>
+				<a>
+
+				</a>
+			</article>
+
+			<!-- Work -->
+			<article id="work" class="panel">
+				<header>
+					<h2>Documents</h2>
+				</header>
+				<p>
+				</p>
+					<div class="row">
+						<div class="col-4 col-6-medium col-12-small">
+							<label for="touch1" class="icon solid  fa-regular fa-folder">
+								<i class="menuh4">Math-Physique</i>
+							</label>
+							<input type="checkbox" id="touch1">
+							<ul class="slide">
+								<li><a href="1mp.html">1ère MP</a></li>
+								<li><a href="2mp.html">2ème MP</a></li>
+								<!--
+								<li><a href="#">BG</a></li> 
+								<li><a href="#">PT</a></li> 
+								-->
+							</ul>
+							<label for="touch2" class="icon solid  fa-regular fa-folder">
+								<i class="menuh4">Physique-Chimie </i>
+							</label>
+							<input type="checkbox" id="touch2">
+							<ul class="slide">
+								<li><a href="1pc.html">1ère PC</a></li>
+								<li><a href="2pc.html">2ème PC</a></li>
+								<!--
+								<li><a href="#">BG</a></li> 
+								<li><a href="#">PT</a></li> 
+								-->
+							</ul>
+							
+							<label for="touch3" class="icon solid  fa-regular fa-folder">
+								<i class="menuh4">Biologie-Géologie </i>
+							</label>
+							<input type="checkbox" id="touch3">
+							<ul class="slide">
+								<li><a href="https://drive.google.com/drive/folders/1LgQWb-qp0huHMzryxcMv85Wi1GPgjm9u?usp=sharing">1ère et 2ème (demande d'accès nécessaire)</a></li>
+							</ul>
+							
+							
+						</div>
+					</div>
+			</article>
+			<!--1ere-->
+
+
+			<!-- Contact -->
+			<article id="contact" class="panel">
+				<header>
+					<h2>Envoyer votre Feedback ici!</h2>
+				</header>
+				<form action="https://formspree.io/f/xjvzgkwo" method="POST">
+					<div>
+						<div class="row">
+							<div class="col-6 col-12-medium">
+								<input type="text" name="name" placeholder="Nom" />
+							</div>
+							<div class="col-6 col-12-medium">
+								<input type="email" name="email" placeholder="Email" />
+							</div>
+							<div class="col-12">
+								<input type="text" name="subject" placeholder="Sujet" />
+							</div>
+							<div class="col-12">
+								<textarea name="message" placeholder="Message" rows="6"></textarea>
+							</div>
+							<div class="col-12">
+								<input type="submit" value="Envoyer message" />
+							</div>
+						</div>
+					</div>
+				</form>
+			</article>
+
+			<article id="other" class="panel">
+				<header>
+					<h2>Informations</h2>
+				</header>
+				<p class="#end">
+					Ce site web est une solution gratuite proposée par
+					2 étudiants ingénieurs: Skander Karoui & Insaf Hamdi
+					afin de faciliter la révision aux étudiants inscrits
+					aux classes préparatoires et dans le but de les mieux
+					préparer aux concours national des écoles d'ingénieurs.
+					On ne prétend d'aucune manière la possession de tous ces
+					documents. Ce projet est le fruit d'une collecte de plusieurs
+					fichiers provenants de divers sources publiques.
+				</p>
+				<p>
+					Si vous êtes le propriétaire d'un document que vous voudriez enlever prière de me contacter sur cette adresse : <a href = "mailto:skander.karoui@archiveprepa.tn?subject = Feedback&body = Message">
+						skander.karoui@archiveprepa.tn
+						</a> ou sur ma page <a href="https://www.facebook.com/skander.karoui">Facebook</a>
+				</p>
+				
+			</article>
+
+		</div>
+
+		<!-- Footer -->
+		<div id="footer">
+			<ul class="copyright">
+				<li> archiveprepa &copy;  2022 </li>
+			</ul>
+		</div>
+
+	</div>
+
+	<!-- Scripts -->
+	<script src="assets/js/jquery.min.js"></script>
+	<script src="assets/js/browser.min.js"></script>
+	<script src="assets/js/breakpoints.min.js"></script>
+	<script src="assets/js/util.js"></script>
+	<script src="assets/js/main.js"></script>
+
+</body>
+
+</html>
