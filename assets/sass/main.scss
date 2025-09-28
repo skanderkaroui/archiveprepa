@@ -951,13 +951,20 @@
 			border-top: 1px solid #efefef;
 		}
 
-		&__result {
-			border-bottom: 1px solid #f2f2f2;
+			&__result {
+				border-bottom: 1px solid #f2f2f2;
 
-			&:last-child {
-				border-bottom: 0;
+				&:last-child {
+					border-bottom: 0;
+				}
+
+				&.is-active {
+					.page-search__result-btn {
+						color: #1a3d6d;
+						background: rgba(230, 238, 255, 0.65);
+					}
+				}
 			}
-		}
 
 		&__result-btn {
 			display: flex;

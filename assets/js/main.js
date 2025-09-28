@@ -347,12 +347,15 @@
 					return;
 
 				var namespace = '.pagesearch-' + containerId;
+				var shortcutNamespace = '.pagesearch-shortcut-' + containerId;
 				var $panel = $container.find('.page-search__panel');
 				var $input = $container.find('.page-search__input');
 				var $results = $container.find('.page-search__results');
 				var highlightClass = 'search-highlight-target';
 				var highlightTimeout = null;
 				var $lastHighlight = $();
+				var currentMatches = [];
+				var activeIndex = -1;
 
 				var items = buildIndex();
 				var isOpen = false;
@@ -407,6 +410,8 @@
 
 				function showIdleMessage() {
 					window.clearTimeout(debounceTimer);
+					currentMatches = [];
+					setActiveResult(-1);
 					$results.empty();
 				}
 
@@ -468,6 +473,7 @@
 
 					var limit = Math.min(matches.length, 40);
 					var frag = '';
+					currentMatches = [];
 
 					for (var n = 0; n < limit; n++) {
 						var matchIndex = matches[n].itemIndex;
@@ -478,14 +484,69 @@
 						if (matchItem.displayContext)
 							contextHtml = '<span class="page-search__context">' + escapeHtml(matchItem.displayContext) + '</span>';
 
-						frag += '<li class="page-search__result" role="option" data-match-index="' + matchIndex + '">' +
+						frag += '<li class="page-search__result" role="option" data-match-index="' + matchIndex + '" data-result-pos="' + n + '">' +
 							'<button type="button" class="page-search__result-btn">' +
 								'<span class="page-search__label">' + textHtml + '</span>' + contextHtml +
 							'</button>' +
 						'</li>';
+
+						currentMatches.push(matchIndex);
 					}
 
 					$results.html(frag);
+					$results.scrollTop(0);
+					if (currentMatches.length)
+						setActiveResult(0);
+					else
+						setActiveResult(-1);
+				}
+
+				function setActiveResult(index) {
+					if (activeIndex === index)
+						return;
+
+					var $prev = $results.find('.page-search__result.is-active');
+					if ($prev.length)
+						$prev.removeClass('is-active');
+
+					activeIndex = -1;
+
+					if (index < 0 || index >= currentMatches.length)
+						return;
+
+					var $candidate = $results.find('.page-search__result[data-result-pos="' + index + '"]');
+
+					if (!$candidate.length)
+						return;
+
+					$candidate.addClass('is-active');
+					activeIndex = index;
+					ensureActiveVisible();
+				}
+
+				function ensureActiveVisible() {
+					if (activeIndex < 0)
+						return;
+
+					var $active = $results.find('.page-search__result[data-result-pos="' + activeIndex + '"]');
+
+					if (!$active.length)
+						return;
+
+					var container = $results.get(0);
+
+					if (!container)
+						return;
+
+					var activeTop = $active.get(0).offsetTop;
+					var activeBottom = activeTop + $active.outerHeight();
+					var viewTop = container.scrollTop;
+					var viewBottom = viewTop + container.clientHeight;
+
+					if (activeTop < viewTop)
+						container.scrollTop = activeTop;
+					else if (activeBottom > viewBottom)
+						container.scrollTop = activeBottom - container.clientHeight;
 				}
 
 				function focusResultTarget(item) {
@@ -493,6 +554,7 @@
 						return;
 
 					closeModal(false);
+					setActiveResult(-1);
 
 					var panelId = item.panelId;
 					var targetHash = panelId ? '#' + panelId : null;
@@ -575,6 +637,7 @@
 						return;
 
 					isOpen = false;
+					setActiveResult(-1);
 					$container.removeClass('is-visible');
 					$body.removeClass('is-search-open');
 
@@ -670,12 +733,22 @@
 					var key = event.key || event.originalEvent && event.originalEvent.key;
 					var keyCode = event.keyCode;
 
-					if (key === 'ArrowDown' || keyCode === 40) {
-						var $first = $results.find('.page-search__result-btn').first();
+					if ((key === 'ArrowDown' || keyCode === 40) && currentMatches.length) {
+						event.preventDefault();
+						var next = activeIndex >= 0 ? (activeIndex + 1) % currentMatches.length : 0;
+						setActiveResult(next);
+					}
 
-						if ($first.length) {
+					else if ((key === 'ArrowUp' || keyCode === 38) && currentMatches.length) {
+						event.preventDefault();
+						var prev = activeIndex <= 0 ? currentMatches.length - 1 : activeIndex - 1;
+						setActiveResult(prev);
+					}
+
+					else if (key === 'Enter' || keyCode === 13) {
+						if (activeIndex >= 0 && currentMatches[activeIndex] != null) {
 							event.preventDefault();
-							$first.trigger('focus');
+							focusResultTarget(items[currentMatches[activeIndex]]);
 						}
 					}
 				});
@@ -685,6 +758,9 @@
 					var keyCode = event.keyCode;
 					var $buttons = $results.find('.page-search__result-btn');
 					var index = $buttons.index(this);
+
+					if (index !== -1)
+						setActiveResult(index);
 
 					if (key === 'ArrowDown' || keyCode === 40) {
 						event.preventDefault();
@@ -708,6 +784,10 @@
 
 					var $item = $(this).closest('.page-search__result');
 					var matchIndex = parseInt($item.attr('data-match-index'), 10);
+					var pos = parseInt($item.attr('data-result-pos'), 10);
+
+					if (!isNaN(pos))
+						setActiveResult(pos);
 
 					if (isNaN(matchIndex))
 						return;
@@ -715,6 +795,33 @@
 					var targetItem = items[matchIndex];
 
 					focusResultTarget(targetItem);
+				});
+
+				$results.on('focus' + namespace, '.page-search__result-btn', function() {
+					var $item = $(this).closest('.page-search__result');
+					var pos = parseInt($item.attr('data-result-pos'), 10);
+
+					if (!isNaN(pos))
+						setActiveResult(pos);
+				});
+
+				$(document).on('keydown' + shortcutNamespace, function(event) {
+					if (event.defaultPrevented)
+						return;
+
+					var key = event.key || event.originalEvent && event.originalEvent.key;
+
+					if (!key)
+						return;
+
+					if ((event.metaKey || event.ctrlKey) && !event.altKey && key.toLowerCase() === 'k') {
+						event.preventDefault();
+
+						if (isOpen)
+							$input.trigger('focus');
+						else
+							openModal();
+					}
 				});
 
 				showIdleMessage();

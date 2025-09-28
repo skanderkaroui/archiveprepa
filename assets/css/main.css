@@ -2356,6 +2356,11 @@ body.is-search-open {
 	border-bottom: 0;
 }
 
+.page-search__result.is-active .page-search__result-btn {
+	color: #1a3d6d;
+	background: rgba(230, 238, 255, 0.65);
+}
+
 .page-search__result-btn {
 	display: flex;
 	align-items: baseline;
