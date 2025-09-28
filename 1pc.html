@@ -27,7 +27,20 @@
 						<a href="#sta" class="icon solid fa-wrench" title="STA" aria-label="STA"><span>STA</span></a>
 						<a href="#fr" class="icon solid fa-book" title="Frenglish" aria-label="Frenglish"><span>Frenglish</span></a>
 						<a href="#livre" class="icon solid fa-book-open" title="Livres" aria-label="Livres"><span>Livres</span></a>	
+						<a href="#pc1-search" class="icon solid fa-search search-trigger" title="Recherche" aria-label="Recherche" aria-haspopup="dialog" data-search-target="pc1-search"><span>Recherche</span></a>
 					</nav>
+
+					<div class="page-search" id="pc1-search" role="dialog" aria-modal="true" aria-labelledby="pc1-search-input" hidden>
+						<div class="page-search__overlay" data-search-close></div>
+						<div class="page-search__panel" role="document">
+							<div class="page-search__field">
+								<span class="page-search__icon fas fa-search" aria-hidden="true"></span>
+								<label for="pc1-search-input" class="sr-only">Rechercher</label>
+								<input type="search" id="pc1-search-input" class="page-search__input" placeholder="Rechercher un document…" autocomplete="off" />
+							</div>
+							<ul class="page-search__results" role="listbox" aria-live="polite"></ul>
+						</div>
+					</div>
 
 				<!-- Main -->
 					<div id="main">
