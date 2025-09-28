@@ -1695,7 +1695,7 @@ input, select, textarea {
 	}
 
 		ul li {
-			padding-left: 0.5em;
+			padding-left: 0.25em;
 		}
 
 	ol {
@@ -2274,7 +2274,19 @@ input, select, textarea {
 	  }
 
 	  .resource-list li {
-		padding: 0.15em 0;
+		padding: 0.05em 0;
+	  }
+
+	  .resource-list li ul {
+		margin: 0.2em 0 0.2em 0;
+	  }
+
+	  .resource-list li ul li {
+		padding: 0.02em 0;
+	  }
+
+	  .resource-list li ul.square li {
+		padding: 0.02em 0;
 	  }
 
 
