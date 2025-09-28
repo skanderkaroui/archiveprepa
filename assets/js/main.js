@@ -127,8 +127,8 @@
 						.css('max-height', $main.height() + 'px')
 						.css('min-height', $main.height() + 'px');
 
-				// Delay.
-					setTimeout(function() {
+				// Remove delay to speed up switching.
+					(function() {
 
 						// Hide all panels.
 							$panels.hide();
@@ -144,8 +144,8 @@
 						// Reset scroll.
 							$window.scrollTop(0);
 
-						// Delay.
-							window.setTimeout(function() {
+							// Remove secondary delay as well.
+								(function() {
 
 								// Activate target panel.
 									$panel.removeClass('inactive');
@@ -159,11 +159,10 @@
 									$window.triggerHandler('--refresh');
 
 								// Unlock.
-									locked = false;
+										locked = false;
+								})();
 
-							}, (breakpoints.active('small') ? 0 : 500));
-
-					}, 250);
+						})();
 
 			});
 
