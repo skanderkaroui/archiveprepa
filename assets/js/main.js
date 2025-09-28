@@ -266,15 +266,46 @@
 				}).join('');
 			}
 
-			function buildContext($link) {
-				var parts = [];
+			function buildContextInfo($link) {
+				function formatLabel(str) {
+					if (!str)
+						return '';
+
+					var lower = str.toLowerCase();
+
+					return lower.replace(/\b\w/g, function(ch) {
+						return ch.toUpperCase();
+					});
+				}
+
+				var info = {
+					panelId: null,
+					panelTitle: '',
+					groupTitle: '',
+					panelDisplay: '',
+					combined: ''
+				};
+
 				var $panel = $link.closest('article.panel');
 
 				if ($panel.length) {
-					var panelTitle = $.trim($panel.find('> header').first().text());
+					info.panelId = $panel.attr('id') || null;
+					var $panelHeader = $panel.find('> header');
+					var panelTitle = '';
 
-					if (panelTitle)
-						parts.push(panelTitle);
+					if ($panelHeader.length) {
+						var $firstHeading = $panelHeader.find('h1, h2, h3').first();
+
+						if ($firstHeading.length)
+							panelTitle = $.trim($firstHeading.text());
+						else
+							panelTitle = $.trim($panelHeader.text());
+					}
+
+					if (panelTitle) {
+						info.panelTitle = panelTitle;
+						info.panelDisplay = formatLabel(panelTitle);
+					}
 				}
 
 				var $groupLabel = $link.closest('ul').prevAll('.menuh4').first();
@@ -286,10 +317,20 @@
 					var groupText = $.trim($groupLabel.text());
 
 					if (groupText)
-						parts.push(groupText);
+						info.groupTitle = groupText;
 				}
 
-				return parts.join(' • ');
+				var parts = [];
+
+				if (info.panelTitle)
+					parts.push(info.panelTitle);
+
+				if (info.groupTitle)
+					parts.push(info.groupTitle);
+
+				info.combined = parts.join(' • ');
+
+				return info;
 			}
 
 			$searchContainers.each(function() {
@@ -346,14 +387,17 @@
 
 						seen[key] = true;
 
-						var context = buildContext($link);
+						var contextInfo = buildContextInfo($link);
 
 						list.push({
 							text: text,
 							href: href,
-							context: context,
+							panelId: contextInfo.panelId,
+							panelTitle: contextInfo.panelTitle,
+							groupTitle: contextInfo.groupTitle,
+							displayContext: contextInfo.panelDisplay || contextInfo.panelTitle || contextInfo.groupTitle,
 							normalized: normalizeTerm(text),
-							contextNormalized: normalizeTerm(context),
+							contextNormalized: normalizeTerm(contextInfo.combined),
 							element: this
 						});
 					});
@@ -429,9 +473,15 @@
 						var matchIndex = matches[n].itemIndex;
 						var matchItem = items[matchIndex];
 						var textHtml = highlightWordwise(matchItem.text, normalizedTokens);
+						var contextHtml = '';
+
+						if (matchItem.displayContext)
+							contextHtml = '<span class="page-search__context">' + escapeHtml(matchItem.displayContext) + '</span>';
 
 						frag += '<li class="page-search__result" role="option" data-match-index="' + matchIndex + '">' +
-							'<button type="button" class="page-search__result-btn">' + textHtml + '</button>' +
+							'<button type="button" class="page-search__result-btn">' +
+								'<span class="page-search__label">' + textHtml + '</span>' + contextHtml +
+							'</button>' +
 						'</li>';
 					}
 
@@ -444,7 +494,10 @@
 
 					closeModal(false);
 
-					window.setTimeout(function() {
+					var panelId = item.panelId;
+					var targetHash = panelId ? '#' + panelId : null;
+
+					var executeScroll = function() {
 						var $link = $(item.element);
 						var $target = $link.closest('li');
 
@@ -471,7 +524,16 @@
 						}, 1800);
 
 						$link.trigger('focus');
-					}, 160);
+					};
+
+					var delay = 120;
+
+					if (targetHash && window.location.hash !== targetHash) {
+						window.location.hash = targetHash;
+						delay = 260;
+					}
+
+					window.setTimeout(executeScroll, delay);
 				}
 
 				function openModal() {
