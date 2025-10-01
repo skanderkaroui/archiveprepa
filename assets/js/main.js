@@ -217,9 +217,6 @@
 
 			var $searchContainers = $('.page-search');
 
-			if ($searchContainers.length === 0)
-				return;
-
 			var focusableSelector = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1")]';
 			var canUseNormalize = (typeof ''.normalize === 'function');
 
@@ -232,11 +229,11 @@
 				return result;
 			}
 
-			function escapeHtml(str) {
-				return (str || '').replace(/[&<>"']/g, function(match) {
-					switch (match) {
-						case '&':
-							return '&amp;';
+		function escapeHtml(str) {
+			return (str || '').replace(/[&<>"']/g, function(match) {
+				switch (match) {
+					case '&':
+						return '&amp;';
 						case '<':
 							return '&lt;';
 						case '>':
@@ -248,6 +245,612 @@
 					}
 				});
 			}
+
+		var recentHistory = (function() {
+			var storagePrefix = 'archiveprepa.history.';
+			var historyLimit = 12;
+			var memoryEntries = [];
+			var slug = (function() {
+				try {
+					var path = window.location && window.location.pathname ? window.location.pathname : '';
+					var match = path.match(/([\w-]+)\.html$/i);
+
+					if (match && match[1])
+						return match[1].toLowerCase();
+				}
+				catch (err) {
+					// Ignore failures and fall back to default slug.
+				}
+
+				return 'index';
+			})();
+			var storageKey = storagePrefix + slug;
+			var storageSupported = (function() {
+				try {
+					if (!('localStorage' in window))
+						return false;
+
+					var testKey = storagePrefix + 'support';
+					window.localStorage.setItem(testKey, '1');
+					window.localStorage.removeItem(testKey);
+
+					return true;
+				}
+				catch (err) {
+					return false;
+				}
+			})();
+
+			function sanitizeHref(href) {
+				if (!href)
+					return '';
+
+				if ($ && $.trim)
+					return $.trim(href);
+
+				return (href + '').trim();
+			}
+
+			function isTrackableHref(href) {
+				if (!href)
+					return false;
+
+				var lower = href.toLowerCase();
+
+				return lower !== '#' && lower.indexOf('javascript:') !== 0;
+			}
+
+			function cloneEntries(entries) {
+				return entries.slice(0);
+			}
+
+			function loadEntries() {
+				if (storageSupported) {
+					try {
+						var raw = window.localStorage.getItem(storageKey);
+
+						if (!raw)
+							return [];
+
+						var parsed = JSON.parse(raw);
+
+						if (Array.isArray(parsed))
+							return parsed.filter(function(entry) {
+								return entry && entry.href;
+							});
+					}
+					catch (err) {
+						storageSupported = false;
+					}
+				}
+
+				return cloneEntries(memoryEntries);
+			}
+
+			function saveEntries(entries) {
+				if (storageSupported) {
+					try {
+						window.localStorage.setItem(storageKey, JSON.stringify(entries));
+						return;
+					}
+					catch (err) {
+						storageSupported = false;
+					}
+				}
+
+				memoryEntries = cloneEntries(entries);
+			}
+
+			function formatAbsoluteDate(timestamp) {
+				if (!timestamp)
+					return '';
+
+				try {
+					return new Date(timestamp).toLocaleString('fr-FR', {
+						dateStyle: 'medium',
+						timeStyle: 'short'
+					});
+				}
+				catch (err) {
+					return '';
+				}
+			}
+
+			function escapeAttribute(str) {
+				return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+			}
+
+			function formatDayKey(timestamp) {
+				if (!timestamp)
+					return '';
+
+				var date = new Date(timestamp);
+				var y = date.getFullYear();
+				var m = ('0' + (date.getMonth() + 1)).slice(-2);
+				var d = ('0' + date.getDate()).slice(-2);
+
+				return y + '-' + m + '-' + d;
+			}
+
+			function formatDayLabel(timestamp) {
+				if (!timestamp)
+					return '';
+
+				var target = new Date(timestamp);
+				var today = new Date();
+				today.setHours(0, 0, 0, 0);
+
+				var diffDays = Math.floor((today.getTime() - target.setHours(0, 0, 0, 0)) / 86400000);
+				var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+				var label = new Date(timestamp).toLocaleDateString('fr-FR', options);
+
+				if (diffDays === 0)
+					return "Aujourd'hui — " + label;
+
+				if (diffDays === 1)
+					return 'Hier — ' + label;
+
+				return label.charAt(0).toUpperCase() + label.slice(1);
+			}
+
+			function formatTimeLabel(timestamp) {
+				if (!timestamp)
+					return '';
+
+				try {
+					return new Date(timestamp).toLocaleTimeString('fr-FR', {
+						hour: '2-digit',
+						minute: '2-digit'
+					});
+				}
+				catch (err) {
+					return '';
+				}
+			}
+
+			function ensureContainer() {
+				var $home = $('#home.panel');
+
+				if (!$home.length)
+					$home = $('.panel.intro').first();
+
+				if (!$home.length)
+					return $();
+
+				var containerId = 'recent-history-' + slug;
+				var $container = $home.find('#' + containerId);
+
+				if ($container.length)
+					return $container;
+
+				var containerHtml = '' +
+					'<section class="panel-history" id="' + containerId + '" role="region" aria-label="Consultés récemment" data-history-container>' +
+						'<div class="panel-history__header">' +
+							'<h3 class="panel-history__title">Consultés récemment</h3>' +
+							'<button type="button" class="panel-history__clear" data-history-clear>Effacer</button>' +
+						'</div>' +
+						'<div class="panel-history__selection" data-history-selection hidden>' +
+							'<span class="panel-history__selection-label">Sélectionnés 0<span class="panel-history__selection-count" data-history-selection-count>0</span></span>' +
+							'<div class="panel-history__selection-actions">' +
+								'<button type="button" class="panel-history__select-open" data-history-open>Ouvrir</button>' +
+								'<button type="button" class="panel-history__select-delete" data-history-delete>Supprimer</button>' +
+							'</div>' +
+						'</div>' +
+						'<ul class="panel-history__list" data-history-list aria-live="polite"></ul>' +
+						'<p class="panel-history__empty" data-history-empty>Aucun document consulté pour le moment.</p>' +
+					'</section>';
+				$container = $(containerHtml);
+
+				var $header = $home.find('> header').first();
+
+				if ($header.length)
+					$header.append($container);
+				else
+					$home.prepend($container);
+
+				$container.on('click', '[data-history-clear]', function(event) {
+					event.preventDefault();
+					clearHistory();
+				});
+
+				// Selection actions will be delegated later once selection logic is initialized.
+
+				return $container;
+			}
+
+			function buildEntryRow(entry) {
+				var label = escapeHtml(entry.label || entry.href || '');
+				var contextText = entry.context ? escapeHtml(entry.context) : '';
+				var timeLabel = formatTimeLabel(entry.viewedAt);
+				var absoluteTime = entry.viewedAt ? formatAbsoluteDate(entry.viewedAt) : '';
+				var hrefAttr = 'href="' + escapeAttribute(entry.href) + '"';
+				var targetAttr = entry.target ? ' target="' + escapeAttribute(entry.target) + '"' : '';
+				var relValue = entry.rel;
+
+				if (!relValue && entry.target === '_blank')
+					relValue = 'noopener noreferrer';
+
+				var relAttr = relValue ? ' rel="' + escapeAttribute(relValue) + '"' : '';
+				var linkTitle = absoluteTime ? ' title="' + escapeAttribute(entry.label + ' — ' + absoluteTime) + '"' : '';
+				var metaHtml = contextText ? '<small class="panel-history__meta">' + contextText + '</small>' : '';
+				var timeTitle = absoluteTime ? ' title="' + escapeAttribute(absoluteTime) + '"' : '';
+				var timeHtml = timeLabel ? '<span class="panel-history__time"' + timeTitle + '>' + escapeHtml(timeLabel) + '</span>' : '<span class="panel-history__time"></span>';
+
+				return '' +
+					'<li class="panel-history__row" data-history-item data-href="' + escapeAttribute(entry.href) + '">' +
+						'<label class="panel-history__select" aria-label="Sélectionner">' +
+							'<input type="checkbox" class="panel-history__checkbox" data-history-select />' +
+						'</label>' +
+						timeHtml +
+						'<span class="panel-history__entry">' +
+							'<a class="panel-history__link" ' + hrefAttr + targetAttr + relAttr + linkTitle + '>' + label + '</a>' +
+							metaHtml +
+						'</span>' +
+					'</li>';
+			}
+
+			function renderHistory() {
+				var $container = ensureContainer();
+
+				if (!$container.length)
+					return;
+
+				var entries = loadEntries();
+				var $list = $container.find('[data-history-list]');
+				var $empty = $container.find('[data-history-empty]');
+				var $clear = $container.find('[data-history-clear]');
+
+				if (!$list.length || !$empty.length)
+					return;
+
+				$list.empty();
+
+				if (!entries.length) {
+					$list.attr('hidden', 'hidden');
+					$empty.removeAttr('hidden');
+
+					if ($clear.length)
+						$clear.attr('hidden', 'hidden');
+
+					return;
+				}
+
+				var limitedEntries = entries.slice(0, historyLimit);
+				var groups = [];
+				var grouped = {};
+
+				for (var i = 0; i < limitedEntries.length; i++) {
+					var entry = limitedEntries[i];
+					var key = formatDayKey(entry.viewedAt);
+					var group = grouped[key];
+
+					if (!group) {
+						group = {
+							label: formatDayLabel(entry.viewedAt),
+							entries: []
+						};
+						grouped[key] = group;
+						groups.push(group);
+					}
+
+					group.entries.push(entry);
+				}
+
+				var html = '';
+
+				groups.forEach(function(group) {
+					html += '<li class="panel-history__group">' +
+						'<div class="panel-history__day">' + escapeHtml(group.label || '') + '</div>' +
+						'<ul class="panel-history__rows">';
+
+					for (var j = 0; j < group.entries.length; j++)
+						html += buildEntryRow(group.entries[j]);
+
+					html += '</ul></li>';
+				});
+
+				$list.html(html);
+				$list.removeAttr('hidden');
+				$empty.attr('hidden', 'hidden');
+
+				initializeSelection($container);
+
+				if ($clear.length)
+					$clear.removeAttr('hidden');
+			}
+			function initializeSelection($container) {
+				var $selectionBar = $container.find('[data-history-selection]');
+				var $count = $container.find('[data-history-selection-count]');
+				var selectedSet = Object.create(null);
+
+				function getKeyFromItem($item) {
+					return ($item && $item.attr('data-href')) || '';
+				}
+
+				function updateSelectionUI() {
+					var keys = Object.keys(selectedSet).filter(function(k) { return !!selectedSet[k]; });
+					var n = keys.length;
+
+					if (n > 0) {
+						$count.text(n);
+						$selectionBar.removeAttr('hidden');
+					} else {
+						$count.text('0');
+						$selectionBar.attr('hidden', 'hidden');
+					}
+				}
+
+				$container.off('change.pagehistoryselect').on('change.pagehistoryselect', '[data-history-select]', function() {
+					var $cb = $(this);
+					var $item = $cb.closest('[data-history-item]');
+					var key = getKeyFromItem($item);
+
+					if (!key)
+						return;
+
+					if ($cb.is(':checked'))
+						selectedSet[key] = true;
+					else
+						delete selectedSet[key];
+
+					updateSelectionUI();
+				});
+
+				$container.off('click.pagehistoryopen').on('click.pagehistoryopen', '[data-history-open]', function(event) {
+					event.preventDefault();
+					var urls = Object.keys(selectedSet).filter(function(k) { return !!selectedSet[k]; });
+
+					if (!urls.length)
+						return;
+
+					// Open each in a new tab/window.
+					urls.forEach(function(u) {
+						try { window.open(u, '_blank', 'noopener'); } catch (err) {}
+					});
+				});
+
+				$container.off('click.pagehistorydelete').on('click.pagehistorydelete', '[data-history-delete]', function(event) {
+					event.preventDefault();
+					var urls = Object.keys(selectedSet).filter(function(k) { return !!selectedSet[k]; });
+
+					if (!urls.length)
+						return;
+
+					var entries = loadEntries();
+					var filtered = entries.filter(function(entry) {
+						return entry && urls.indexOf(entry.href) === -1;
+					});
+
+					saveEntries(filtered);
+					selectedSet = Object.create(null);
+					renderHistory();
+				});
+			}
+
+			function clearHistory() {
+				saveEntries([]);
+				renderHistory();
+			}
+
+			function truncateContent(str, maxLength) {
+				if (!str)
+					return '';
+
+				if (str.length <= maxLength)
+					return str;
+
+				return str.substr(0, maxLength - 1) + '…';
+			}
+
+			function addEntry(entry) {
+				if (!entry || !entry.href)
+					return;
+
+				var href = sanitizeHref(entry.href);
+
+				if (!isTrackableHref(href))
+					return;
+
+				entry.href = href;
+				entry.viewedAt = Date.now();
+				entry.label = truncateContent(entry.label || entry.href, 180);
+				entry.context = truncateContent(entry.context || '', 220);
+
+				var entries = loadEntries();
+				var filtered = entries.filter(function(existing) {
+					return existing && existing.href !== href;
+				});
+
+				filtered.unshift(entry);
+
+				if (filtered.length > historyLimit)
+					filtered.length = historyLimit;
+
+				saveEntries(filtered);
+				renderHistory();
+			}
+
+			function entryFromLink($link) {
+				if (!$link || !$link.length)
+					return null;
+
+				var href = sanitizeHref($link.attr('href'));
+
+				if (!isTrackableHref(href))
+					return null;
+
+				var fromHistory = $link.closest('[data-history-container]').length > 0;
+				var persisted = null;
+
+				if (fromHistory) {
+					var stored = loadEntries();
+
+					for (var i = 0; i < stored.length; i++) {
+						if (stored[i] && stored[i].href === href) {
+							persisted = stored[i];
+							break;
+						}
+					}
+				}
+
+				var text = persisted ? persisted.label : ($ && $.trim ? $.trim($link.text()) : ($link.text() || ''));
+				var contextInfo = persisted ? null : buildContextInfo($link);
+				var context = persisted ? (persisted.context || '') : (contextInfo.displayContext || contextInfo.panelDisplay || contextInfo.panelTitle || contextInfo.groupTitle || '');
+				var target = persisted ? (persisted.target || '') : ($link.attr('target') || '');
+				var rel = persisted ? (persisted.rel || '') : ($link.attr('rel') || '');
+				var panelId = persisted ? (persisted.panelId || null) : (contextInfo.panelId || null);
+
+				return {
+					href: href,
+					label: text || context || href,
+					context: context,
+					panelId: panelId,
+					target: target,
+					rel: rel
+				};
+			}
+
+			function addFromLink($link) {
+				var entry = entryFromLink($link);
+
+				if (!entry)
+					return;
+
+				addEntry(entry);
+			}
+
+			return {
+				render: renderHistory,
+				addFromLink: addFromLink,
+				clear: clearHistory,
+				isActive: function() {
+					return true;
+				}
+			};
+		})();
+
+		function clampColorValue(value, min, max) {
+			if (isNaN(value))
+				return min;
+
+			return Math.min(max, Math.max(min, value));
+		}
+
+		function parseRgbColor(str) {
+			if (!str)
+				return null;
+
+			var match = str.match(/rgba?\(([^)]+)\)/i);
+
+			if (!match)
+				return null;
+
+			var parts = match[1].split(',');
+
+			if (parts.length < 3)
+				return null;
+
+			var r = clampColorValue(parseFloat(parts[0]), 0, 255);
+			var g = clampColorValue(parseFloat(parts[1]), 0, 255);
+			var b = clampColorValue(parseFloat(parts[2]), 0, 255);
+			var a = parts.length > 3 ? clampColorValue(parseFloat(parts[3]), 0, 1) : 1;
+
+			return {
+				r: Math.round(r),
+				g: Math.round(g),
+				b: Math.round(b),
+				a: a
+			};
+		}
+
+		function lightenColor(color, weight) {
+			if (!color)
+				return null;
+
+			return {
+				r: clampColorValue(Math.round(color.r + (255 - color.r) * weight), 0, 255),
+				g: clampColorValue(Math.round(color.g + (255 - color.g) * weight), 0, 255),
+				b: clampColorValue(Math.round(color.b + (255 - color.b) * weight), 0, 255),
+				a: clampColorValue(color.a + (1 - color.a) * weight, 0, 1)
+			};
+		}
+
+		function darkenColor(color, weight) {
+			if (!color)
+				return null;
+
+			return {
+				r: clampColorValue(Math.round(color.r * (1 - weight)), 0, 255),
+				g: clampColorValue(Math.round(color.g * (1 - weight)), 0, 255),
+				b: clampColorValue(Math.round(color.b * (1 - weight)), 0, 255),
+				a: color.a
+			};
+		}
+
+		function rgbaString(color, alphaOverride) {
+			if (!color)
+				return '';
+
+			var alpha = typeof alphaOverride === 'number' ? alphaOverride : color.a;
+			alpha = clampColorValue(alpha, 0, 1);
+
+			return 'rgba(' + color.r + ', ' + color.g + ', ' + color.b + ', ' + Math.round(alpha * 1000) / 1000 + ')';
+		}
+
+		function computeHighlightPalette() {
+			var fallbackBg = 'rgba(244, 244, 244, 0.85)';
+			var fallbackOutline = 'rgba(31, 41, 55, 0.18)';
+			var palette = {
+				background: fallbackBg,
+				outline: fallbackOutline
+			};
+
+			try {
+				var baseElement = $main.length ? $main.get(0) : null;
+				var sourceColor = null;
+
+				if (baseElement)
+					sourceColor = window.getComputedStyle(baseElement).backgroundColor;
+
+				if ((!sourceColor || sourceColor === 'rgba(0, 0, 0, 0)' || sourceColor === 'transparent') && $body.length)
+					sourceColor = window.getComputedStyle($body.get(0)).backgroundColor;
+
+				var parsed = parseRgbColor(sourceColor);
+
+				if (parsed) {
+					var bgColor = lightenColor(parsed, 0.42);
+					var outlineColor = darkenColor(parsed, 0.55);
+
+					if (bgColor)
+						palette.background = rgbaString(bgColor, 0.94);
+
+					if (outlineColor)
+						palette.outline = rgbaString(outlineColor, 0.28);
+				}
+			}
+			catch (err) {
+				// Ignore failures and retain fallback colors.
+			}
+
+			return palette;
+		}
+
+		if (recentHistory && recentHistory.render)
+			recentHistory.render();
+
+		if (recentHistory && recentHistory.addFromLink && $main.length) {
+			$main.on('click.pagehistory', 'a[href]', function() {
+				var $link = $(this);
+
+				if ($link.closest('.page-search').length)
+					return;
+
+				recentHistory.addFromLink($link);
+			});
+		}
+
+		if ($searchContainers.length === 0)
+			return;
 
 		function highlightWordwise(text, normalizedTokens) {
 			if (!normalizedTokens.length)
@@ -309,6 +912,7 @@
 
 			return prev[blen];
 		}
+
 
 		function buildContextInfo($link) {
 			function formatLabel(str) {
@@ -443,6 +1047,8 @@
 				var highlightClass = 'search-highlight-target';
 				var highlightTimeout = null;
 				var $lastHighlight = $();
+				var highlightPalette = computeHighlightPalette();
+				var highlightDuration = 3200;
 				var currentMatches = [];
 				var activeIndex = -1;
 
@@ -519,6 +1125,25 @@
 					});
 
 					return list;
+				}
+
+				function applyHighlightStyles($element) {
+					if (!$element || !$element.length)
+						return;
+
+					if (highlightPalette && highlightPalette.background)
+						$element.css('--search-highlight-color', highlightPalette.background);
+
+					if (highlightPalette && highlightPalette.outline)
+						$element.css('--search-highlight-outline', highlightPalette.outline);
+				}
+
+				function clearHighlightStyles($element) {
+					if (!$element || !$element.length)
+						return;
+
+					$element.css('--search-highlight-color', '');
+					$element.css('--search-highlight-outline', '');
 				}
 
 				function showIdleMessage() {
@@ -720,21 +1345,26 @@
 						if (highlightTimeout)
 							window.clearTimeout(highlightTimeout);
 
-						if ($lastHighlight.length)
+						if ($lastHighlight.length) {
+							clearHighlightStyles($lastHighlight);
 							$lastHighlight.removeClass(highlightClass);
+						}
 
 						var offset = $target.offset();
 
 						if (offset)
 							$('html, body').animate({ scrollTop: Math.max(offset.top - 80, 0) }, 300);
 
+						applyHighlightStyles($target);
 						$target.addClass(highlightClass);
 						$lastHighlight = $target;
 
 						highlightTimeout = window.setTimeout(function() {
 							$target.removeClass(highlightClass);
+							clearHighlightStyles($target);
 							$lastHighlight = $();
-						}, 1800);
+							highlightTimeout = null;
+						}, highlightDuration);
 
 						$link.trigger('focus');
 					};
