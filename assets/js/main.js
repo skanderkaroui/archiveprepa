@@ -430,7 +430,7 @@
 							'<button type="button" class="panel-history__clear" data-history-clear>Effacer</button>' +
 						'</div>' +
 						'<div class="panel-history__selection" data-history-selection hidden>' +
-							'<span class="panel-history__selection-label">Sélectionnés 0<span class="panel-history__selection-count" data-history-selection-count>0</span></span>' +
+							'<span class="panel-history__selection-label">Sélectionnés&nbsp;<span class="panel-history__selection-count" data-history-selection-count>0</span></span>' +
 							'<div class="panel-history__selection-actions">' +
 								'<button type="button" class="panel-history__select-open" data-history-open>Ouvrir</button>' +
 								'<button type="button" class="panel-history__select-delete" data-history-delete>Supprimer</button>' +
@@ -561,6 +561,7 @@
 			function initializeSelection($container) {
 				var $selectionBar = $container.find('[data-history-selection]');
 				var $count = $container.find('[data-history-selection-count]');
+				var rowSelectedClass = 'is-selected';
 				var selectedSet = Object.create(null);
 
 				function getKeyFromItem($item) {
@@ -571,12 +572,19 @@
 					var keys = Object.keys(selectedSet).filter(function(k) { return !!selectedSet[k]; });
 					var n = keys.length;
 
+					$container.find('[data-history-item]').each(function() {
+						var $item = $(this);
+						var key = getKeyFromItem($item);
+						var isSelected = !!selectedSet[key];
+						$item.toggleClass(rowSelectedClass, isSelected);
+					});
+
 					if (n > 0) {
 						$count.text(n);
-						$selectionBar.removeAttr('hidden');
+						$selectionBar.removeAttr('hidden').addClass('is-active');
 					} else {
 						$count.text('0');
-						$selectionBar.attr('hidden', 'hidden');
+						$selectionBar.attr('hidden', 'hidden').removeClass('is-active');
 					}
 				}
 
@@ -588,10 +596,14 @@
 					if (!key)
 						return;
 
-					if ($cb.is(':checked'))
+					if ($cb.is(':checked')) {
 						selectedSet[key] = true;
-					else
+						$item.addClass(rowSelectedClass);
+					}
+					else {
 						delete selectedSet[key];
+						$item.removeClass(rowSelectedClass);
+					}
 
 					updateSelectionUI();
 				});
@@ -625,6 +637,8 @@
 					selectedSet = Object.create(null);
 					renderHistory();
 				});
+
+				updateSelectionUI();
 			}
 
 			function clearHistory() {

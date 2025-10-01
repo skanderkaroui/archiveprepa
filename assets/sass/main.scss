@@ -1132,22 +1132,64 @@
 			width: 1em;
 			height: 1em;
 			cursor: pointer;
+			border: 1px solid #b8b8b8;
+			border-radius: 0.2em;
+			background-color: #ffffff;
+			accent-color: #80868b;
+			transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		}
+
+		&__checkbox:checked {
+			border-color: #7a7f85;
+			box-shadow: 0 0 0 1px rgba(128, 134, 139, 0.35);
+		}
+
+		&__checkbox:focus-visible {
+			outline: 2px solid rgba(26, 115, 232, 0.35);
+			outline-offset: 2px;
+		}
+
+		&__row.is-selected {
+			background: #f1f3f4;
+			border-radius: 0.45em;
 		}
 
 		&__selection {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			background: #f7f7f7;
-			border: 1px solid #ececec;
+			gap: 0.75em;
+			width: 100%;
+			background: rgba(248, 249, 250, 0.96);
+			border: 1px solid #dfe1e5;
 			border-radius: 0.5em;
+			box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
 			padding: 0.5em 0.75em;
-			margin: 0.25em 0 0.6em 0;
+			margin: 0 0 0.75em 0;
+			position: sticky;
+			top: 0;
+			z-index: 25;
+			box-sizing: border-box;
 		}
 
 		&__selection-label {
 			font-size: 0.95em;
-			color: #333;
+			color: #2c2c2c;
+			display: inline-flex;
+			align-items: center;
+		}
+
+		&__selection-count {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			margin-left: 0.35em;
+			min-width: 2ch;
+			padding: 0.1em 0.45em;
+			border-radius: 999px;
+			background: #e4e7eb;
+			color: #202124;
+			font-weight: 600;
 		}
 
 		&__selection-actions {
@@ -1157,18 +1199,27 @@
 
 		&__select-open,
 		&__select-delete {
-			background: #222222;
+			background: #232629;
 			color: #ffffff;
 			border: 0;
-			padding: 0.4em 0.8em;
+			padding: 0.4em 0.85em;
 			cursor: pointer;
 			border-radius: 0.35em;
 			font-size: 0.9em;
+			font-weight: 600;
+			transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 		}
 
 		&__select-open:hover,
 		&__select-delete:hover {
-			background: #333333;
+			background: #373a3d;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+		}
+
+		&__select-open:focus-visible,
+		&__select-delete:focus-visible {
+			outline: 2px solid rgba(26, 115, 232, 0.35);
+			outline-offset: 2px;
 		}
 
 		&__time {
