@@ -249,27 +249,71 @@
 				});
 			}
 
-			function highlightWordwise(text, normalizedTokens) {
-				if (!normalizedTokens.length)
-					return escapeHtml(text);
+		function highlightWordwise(text, normalizedTokens) {
+			if (!normalizedTokens.length)
+				return escapeHtml(text);
 
-				return text.split(/(\s+)/).map(function(chunk) {
-					if (!chunk.trim())
-						return escapeHtml(chunk);
+			return text.split(/(\s+)/).map(function(chunk) {
+				if (!chunk.trim())
+					return escapeHtml(chunk);
 
-					var normalizedChunk = normalizeTerm(chunk);
-					var matched = normalizedTokens.some(function(token) {
-						return token && normalizedChunk.indexOf(token) !== -1;
-					});
+				var normalizedChunk = normalizeTerm(chunk);
+				var matched = normalizedTokens.some(function(token) {
+					return token && normalizedChunk.indexOf(token) !== -1;
+				});
 
-					return matched ? '<mark>' + escapeHtml(chunk) + '</mark>' : escapeHtml(chunk);
-				}).join('');
+				return matched ? '<mark>' + escapeHtml(chunk) + '</mark>' : escapeHtml(chunk);
+			}).join('');
+		}
+
+		function levenshteinDistance(a, b) {
+			if (a === b)
+				return 0;
+
+			var alen = a ? a.length : 0;
+			var blen = b ? b.length : 0;
+
+			if (alen === 0)
+				return blen;
+
+			if (blen === 0)
+				return alen;
+
+			var prev = new Array(blen + 1);
+			var curr = new Array(blen + 1);
+
+			for (var j = 0; j <= blen; j++)
+				prev[j] = j;
+
+			for (var i = 1; i <= alen; i++) {
+				curr[0] = i;
+				var ca = a.charAt(i - 1);
+
+				for (var k = 1; k <= blen; k++) {
+					var cost = (ca === b.charAt(k - 1)) ? 0 : 1;
+					var insertion = curr[k - 1] + 1;
+					var deletion = prev[k] + 1;
+					var substitution = prev[k - 1] + cost;
+					var min = insertion < deletion ? insertion : deletion;
+
+					if (substitution < min)
+						min = substitution;
+
+					curr[k] = min;
+				}
+
+				var tmp = prev;
+				prev = curr;
+				curr = tmp;
 			}
 
-			function buildContextInfo($link) {
-				function formatLabel(str) {
-					if (!str)
-						return '';
+			return prev[blen];
+		}
+
+		function buildContextInfo($link) {
+			function formatLabel(str) {
+				if (!str)
+					return '';
 
 					var lower = str.toLowerCase();
 
@@ -278,13 +322,15 @@
 					});
 				}
 
-				var info = {
-					panelId: null,
-					panelTitle: '',
-					groupTitle: '',
-					panelDisplay: '',
-					combined: ''
-				};
+			var info = {
+				panelId: null,
+				panelTitle: '',
+				groupTitle: '',
+				panelDisplay: '',
+				listTitles: [],
+				displayContext: '',
+				combined: ''
+			};
 
 				var $panel = $link.closest('article.panel');
 
@@ -320,18 +366,61 @@
 						info.groupTitle = groupText;
 				}
 
-				var parts = [];
+			var listTitles = [];
 
-				if (info.panelTitle)
-					parts.push(info.panelTitle);
+			$link.parents('li').each(function() {
+				var $li = $(this);
+				var $clone = $li.clone();
 
-				if (info.groupTitle)
-					parts.push(info.groupTitle);
+				$clone.find('ul,ol').remove();
+				$clone.find('a').remove();
+				$clone.find('.menuh4').remove();
 
-				info.combined = parts.join(' • ');
+				var labelText = $.trim($clone.text());
 
-				return info;
+				if (labelText && labelText !== info.panelTitle && labelText !== info.groupTitle && listTitles.indexOf(labelText) === -1)
+					listTitles.push(labelText);
+			});
+
+			if (listTitles.length)
+				info.listTitles = listTitles;
+
+			var parts = [];
+
+			if (info.panelTitle)
+				parts.push(info.panelTitle);
+
+			if (info.groupTitle)
+				parts.push(info.groupTitle);
+
+			if (listTitles.length)
+				Array.prototype.push.apply(parts, listTitles.slice().reverse());
+
+			info.combined = parts.join(' ');
+
+			var displayParts = [];
+
+			if (info.panelDisplay)
+				displayParts.push(info.panelDisplay);
+			else if (info.panelTitle)
+				displayParts.push(formatLabel(info.panelTitle));
+
+			if (info.groupTitle)
+				displayParts.push(formatLabel(info.groupTitle));
+
+			if (listTitles.length) {
+				listTitles.slice().reverse().forEach(function(title) {
+					displayParts.push(formatLabel(title));
+				});
 			}
+
+			if (displayParts.length)
+				info.displayContext = displayParts.join(' • ');
+			else
+				info.displayContext = info.panelDisplay || '';
+
+			return info;
+		}
 
 			$searchContainers.each(function() {
 
@@ -390,19 +479,43 @@
 
 						seen[key] = true;
 
-						var contextInfo = buildContextInfo($link);
+					var contextInfo = buildContextInfo($link);
+					var normalizedText = normalizeTerm(text);
+					var combinedContext = contextInfo.combined || '';
+					var contextNormalized = normalizeTerm(combinedContext);
+					var combinedNormalized = normalizedText;
 
-						list.push({
-							text: text,
-							href: href,
-							panelId: contextInfo.panelId,
-							panelTitle: contextInfo.panelTitle,
-							groupTitle: contextInfo.groupTitle,
-							displayContext: contextInfo.panelDisplay || contextInfo.panelTitle || contextInfo.groupTitle,
-							normalized: normalizeTerm(text),
-							contextNormalized: normalizeTerm(contextInfo.combined),
-							element: this
-						});
+					if (contextNormalized)
+						combinedNormalized = normalizedText ? normalizedText + ' ' + contextNormalized : contextNormalized;
+
+					var tokenMap = {};
+					var searchTokens = [];
+					combinedNormalized.split(/\s+/).forEach(function(token) {
+						if (!token)
+							return;
+
+						if (!tokenMap[token]) {
+							tokenMap[token] = true;
+							searchTokens.push(token);
+						}
+					});
+
+					var displayContext = contextInfo.displayContext || contextInfo.panelDisplay || contextInfo.panelTitle || contextInfo.groupTitle || '';
+
+					list.push({
+						text: text,
+						href: href,
+						panelId: contextInfo.panelId,
+						panelTitle: contextInfo.panelTitle,
+						groupTitle: contextInfo.groupTitle,
+						listTitles: contextInfo.listTitles,
+						displayContext: displayContext,
+						normalized: normalizedText,
+						contextNormalized: contextNormalized,
+						combinedNormalized: combinedNormalized,
+						searchTokens: searchTokens,
+						element: this
+					});
 					});
 
 					return list;
@@ -415,52 +528,90 @@
 					$results.empty();
 				}
 
-				function performSearch(rawQuery) {
-					var query = (rawQuery || '').trim();
+			function performSearch(rawQuery) {
+				var query = (rawQuery || '').trim();
 
-					if (!query) {
-						showIdleMessage();
-						return;
-					}
+				if (!query) {
+					showIdleMessage();
+					return;
+				}
 
-					var tokens = query.split(/\s+/).filter(function(token) {
-						return token.length > 0;
-					});
-					var normalizedTokens = tokens.map(normalizeTerm);
-					var matches = [];
+				var tokens = query.split(/\s+/).filter(function(token) {
+					return token.length > 0;
+				});
+				var normalizedTokens = tokens.map(normalizeTerm);
+				var matches = [];
 
-					for (var i = 0; i < items.length; i++) {
-						var item = items[i];
-						var matched = true;
+				for (var i = 0; i < items.length; i++) {
+					var item = items[i];
+					var haystack = item.combinedNormalized || item.normalized;
+					var matched = true;
+					var fuzzyPenalty = 0;
+					var hadDirectMatch = false;
 
-						for (var t = 0; t < normalizedTokens.length; t++) {
-							var token = normalizedTokens[t];
+					for (var t = 0; t < normalizedTokens.length; t++) {
+						var token = normalizedTokens[t];
 
-							if (!token)
+						if (!token)
+							continue;
+
+						var tokenIndex = haystack.indexOf(token);
+
+						if (tokenIndex !== -1) {
+							hadDirectMatch = true;
+							continue;
+						}
+
+						var bestDistance = Infinity;
+						var bestCandidateLength = 0;
+						var candidates = item.searchTokens && item.searchTokens.length ? item.searchTokens : [];
+
+						for (var c = 0; c < candidates.length; c++) {
+							var candidate = candidates[c];
+
+							if (!candidate)
 								continue;
 
-							if (item.normalized.indexOf(token) === -1 && item.contextNormalized.indexOf(token) === -1) {
-								matched = false;
-								break;
+							var distance = levenshteinDistance(token, candidate);
+
+							if (distance < bestDistance) {
+								bestDistance = distance;
+								bestCandidateLength = candidate.length;
+
+								if (bestDistance === 0)
+									break;
 							}
 						}
 
-						if (matched) {
-							var firstToken = normalizedTokens[0] || '';
-							var primaryIndex = firstToken ? item.normalized.indexOf(firstToken) : 0;
+						var maxEdits = token.length <= 4 ? 1 : 2;
 
-							if (primaryIndex === -1 && firstToken)
-								primaryIndex = item.contextNormalized.indexOf(firstToken);
-
-							if (primaryIndex === -1)
-								primaryIndex = 2000;
-
-							matches.push({
-								itemIndex: i,
-								score: primaryIndex + (item.text.length / 300)
-							});
+						if (bestDistance <= maxEdits) {
+							var lengthDelta = Math.abs(bestCandidateLength - token.length);
+							fuzzyPenalty += 220 + (bestDistance * 120) + (lengthDelta * 10);
+						} else {
+							matched = false;
+							break;
 						}
 					}
+
+					if (matched) {
+						var firstToken = normalizedTokens[0] || '';
+						var primaryIndex = firstToken ? haystack.indexOf(firstToken) : 0;
+
+						if (primaryIndex === -1)
+							primaryIndex = 2000;
+
+						if (!hadDirectMatch && primaryIndex < 2000)
+							primaryIndex += 400;
+
+						var score = primaryIndex + (item.text.length / 300) + fuzzyPenalty;
+
+						matches.push({
+							itemIndex: i,
+							score: score
+						});
+					}
+				}
 
 					matches.sort(function(a, b) {
 						return a.score - b.score;
