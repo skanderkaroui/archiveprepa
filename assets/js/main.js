@@ -385,10 +385,10 @@
 				var label = new Date(timestamp).toLocaleDateString('fr-FR', options);
 
 				if (diffDays === 0)
-					return "Aujourd'hui — " + label;
+					return "Aujourd'hui - " + label;
 
 				if (diffDays === 1)
-					return 'Hier — ' + label;
+					return 'Hier - ' + label;
 
 				return label.charAt(0).toUpperCase() + label.slice(1);
 			}
@@ -465,7 +465,7 @@
 					relValue = 'noopener noreferrer';
 
 				var relAttr = relValue ? ' rel="' + escapeAttribute(relValue) + '"' : '';
-				var linkTitle = absoluteTime ? ' title="' + escapeAttribute(entry.label + ' — ' + absoluteTime) + '"' : '';
+				var linkTitle = absoluteTime ? ' title="' + escapeAttribute(entry.label + ' - ' + absoluteTime) + '"' : '';
 				var metaHtml = contextText ? '<small class="panel-history__meta">' + contextText + '</small>' : '';
 				var timeTitle = absoluteTime ? ' title="' + escapeAttribute(absoluteTime) + '"' : '';
 				var timeHtml = timeLabel ? '<span class="panel-history__time"' + timeTitle + '>' + escapeHtml(timeLabel) + '</span>' : '<span class="panel-history__time"></span>';
