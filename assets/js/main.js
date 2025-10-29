@@ -551,18 +551,8 @@
 				var $count = $container.find('[data-history-selection-count]');
 				var rowSelectedClass = 'is-selected';
 				var selectedSet = Object.create(null);
+				var selectedCount = 0;
 				var $body = $('body');
-
-				function syncCheckboxState($checkbox, isSelected) {
-					var $label = $checkbox.closest('.panel-history__select');
-					var wasChecked = $checkbox.prop('checked');
-
-					if (wasChecked !== isSelected)
-						$checkbox.prop('checked', isSelected);
-
-					$checkbox.attr('aria-checked', isSelected ? 'true' : 'false');
-					$label.toggleClass('is-checked', isSelected);
-				}
 
 				function ensureDecoratedCheckboxes() {
 					$container.find('[data-history-select]').each(function() {
@@ -577,46 +567,33 @@
 					});
 				}
 
-				function primeSelectionFromCheckboxes() {
-					$container.find('[data-history-select]').each(function() {
-						var $checkbox = $(this);
-						var $item = $checkbox.closest('[data-history-item]');
-						var key = getKeyFromItem($item);
-
-						if (!key)
-							return;
-
-						if ($checkbox.is(':checked'))
-							selectedSet[key] = true;
-					});
-				}
-
 				function getKeyFromItem($item) {
 					return ($item && $item.attr('data-href')) || '';
 				}
 
-				function updateSelectionUI() {
-					var keys = Object.keys(selectedSet).filter(function(k) { return !!selectedSet[k]; });
-					var n = keys.length;
+				function applySelectionState($item, isSelected) {
+					if (!$item || !$item.length)
+						return;
 
-					$container.find('[data-history-item]').each(function() {
-						var $item = $(this);
-						var key = getKeyFromItem($item);
-						var isSelected = !!selectedSet[key];
-						$item.toggleClass(rowSelectedClass, isSelected);
-						$item.attr('aria-selected', isSelected ? 'true' : 'false');
-					});
+					$item.toggleClass(rowSelectedClass, isSelected);
+					$item.attr('aria-selected', isSelected ? 'true' : 'false');
 
-					$container.find('[data-history-select]').each(function() {
-						var $checkbox = $(this);
-						var $item = $checkbox.closest('[data-history-item]');
-						var key = getKeyFromItem($item);
-						var isSelected = !!selectedSet[key];
-						syncCheckboxState($checkbox, isSelected);
-					});
+					var $checkbox = $item.find('[data-history-select]').first();
 
-					if (n > 0) {
-						$count.text(n);
+					if ($checkbox.length) {
+						$checkbox.prop('checked', isSelected);
+						$checkbox.attr('aria-checked', isSelected ? 'true' : 'false');
+						$checkbox.closest('.panel-history__select').toggleClass('is-checked', isSelected);
+					}
+				}
+
+				function updateSelectionSummary() {
+					if (selectedCount < 0)
+						selectedCount = 0;
+
+					$count.text(selectedCount);
+
+					if (selectedCount > 0) {
 						$selectionBar.removeAttr('hidden').addClass('is-active').attr('aria-hidden', 'false');
 						$body.addClass('history-selection-active');
 					} else {
@@ -624,6 +601,31 @@
 						$selectionBar.attr('hidden', 'hidden').removeClass('is-active').attr('aria-hidden', 'true');
 						$body.removeClass('history-selection-active');
 					}
+				}
+
+				function primeSelectionFromCheckboxes() {
+					selectedSet = Object.create(null);
+					selectedCount = 0;
+
+					$container.find('[data-history-item]').each(function() {
+						var $item = $(this);
+						var key = getKeyFromItem($item);
+
+						if (!key)
+							return;
+
+						var $checkbox = $item.find('[data-history-select]').first();
+						var isSelected = $checkbox.length ? $checkbox.is(':checked') : false;
+
+						if (isSelected) {
+							selectedSet[key] = true;
+							selectedCount++;
+						}
+
+						applySelectionState($item, isSelected);
+					});
+
+					updateSelectionSummary();
 				}
 
 				$container.off('change.pagehistoryselect').on('change.pagehistoryselect', '[data-history-select]', function() {
@@ -635,16 +637,19 @@
 						return;
 
 					var isChecked = $cb.is(':checked');
+					var alreadySelected = !!selectedSet[key];
 
-					if (isChecked) {
+					if (isChecked && !alreadySelected) {
 						selectedSet[key] = true;
+						selectedCount++;
 					}
-					else {
+					else if (!isChecked && alreadySelected) {
 						delete selectedSet[key];
+						selectedCount = Math.max(0, selectedCount - 1);
 					}
 
-					syncCheckboxState($cb, isChecked);
-					updateSelectionUI();
+					applySelectionState($item, isChecked);
+					updateSelectionSummary();
 				});
 
 				$container.off('click.pagehistoryrow').on('click.pagehistoryrow', '[data-history-item]', function(event) {
@@ -758,10 +763,11 @@
 
 					saveEntries(filtered);
 					selectedSet = Object.create(null);
+					selectedCount = 0;
 					renderHistory();
 				});
 
-				updateSelectionUI();
+				updateSelectionSummary();
 			}
 
 			function clearHistory() {
