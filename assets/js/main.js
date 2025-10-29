@@ -427,9 +427,8 @@
 					'<section class="panel-history" id="' + containerId + '" role="region" aria-label="Consultés récemment" data-history-container>' +
 						'<div class="panel-history__header">' +
 							'<h3 class="panel-history__title">Consultés récemment</h3>' +
-							'<button type="button" class="panel-history__clear" data-history-clear>Effacer</button>' +
 						'</div>' +
-						'<div class="panel-history__selection" data-history-selection hidden>' +
+						'<div class="panel-history__selection" data-history-selection hidden aria-hidden="true">' +
 							'<span class="panel-history__selection-label">Sélectionnés&nbsp;<span class="panel-history__selection-count" data-history-selection-count>0</span></span>' +
 							'<div class="panel-history__selection-actions">' +
 								'<button type="button" class="panel-history__select-open" data-history-open>Ouvrir</button>' +
@@ -447,11 +446,6 @@
 					$header.append($container);
 				else
 					$home.prepend($container);
-
-				$container.on('click', '[data-history-clear]', function(event) {
-					event.preventDefault();
-					clearHistory();
-				});
 
 				// Selection actions will be delegated later once selection logic is initialized.
 
@@ -477,9 +471,10 @@
 				var timeHtml = timeLabel ? '<span class="panel-history__time"' + timeTitle + '>' + escapeHtml(timeLabel) + '</span>' : '<span class="panel-history__time"></span>';
 
 				return '' +
-					'<li class="panel-history__row" data-history-item data-href="' + escapeAttribute(entry.href) + '">' +
+					'<li class="panel-history__row" data-history-item data-href="' + escapeAttribute(entry.href) + '" role="option" aria-selected="false">' +
 						'<label class="panel-history__select" aria-label="Sélectionner">' +
-							'<input type="checkbox" class="panel-history__checkbox" data-history-select />' +
+							'<input type="checkbox" class="panel-history__checkbox" data-history-select aria-checked="false" />' +
+							'<span class="panel-history__check" aria-hidden="true"></span>' +
 						'</label>' +
 						timeHtml +
 						'<span class="panel-history__entry">' +
@@ -498,7 +493,6 @@
 				var entries = loadEntries();
 				var $list = $container.find('[data-history-list]');
 				var $empty = $container.find('[data-history-empty]');
-				var $clear = $container.find('[data-history-clear]');
 
 				if (!$list.length || !$empty.length)
 					return;
@@ -508,9 +502,6 @@
 				if (!entries.length) {
 					$list.attr('hidden', 'hidden');
 					$empty.removeAttr('hidden');
-
-					if ($clear.length)
-						$clear.attr('hidden', 'hidden');
 
 					return;
 				}
@@ -554,15 +545,51 @@
 				$empty.attr('hidden', 'hidden');
 
 				initializeSelection($container);
-
-				if ($clear.length)
-					$clear.removeAttr('hidden');
 			}
 			function initializeSelection($container) {
 				var $selectionBar = $container.find('[data-history-selection]');
 				var $count = $container.find('[data-history-selection-count]');
 				var rowSelectedClass = 'is-selected';
 				var selectedSet = Object.create(null);
+				var $body = $('body');
+
+				function syncCheckboxState($checkbox, isSelected) {
+					var $label = $checkbox.closest('.panel-history__select');
+					var wasChecked = $checkbox.prop('checked');
+
+					if (wasChecked !== isSelected)
+						$checkbox.prop('checked', isSelected);
+
+					$checkbox.attr('aria-checked', isSelected ? 'true' : 'false');
+					$label.toggleClass('is-checked', isSelected);
+				}
+
+				function ensureDecoratedCheckboxes() {
+					$container.find('[data-history-select]').each(function() {
+						var $checkbox = $(this);
+						var $label = $checkbox.closest('.panel-history__select');
+
+						if (!$label.length)
+							return;
+
+						if (!$label.find('.panel-history__check').length)
+							$('<span class="panel-history__check" aria-hidden="true"></span>').insertAfter($checkbox);
+					});
+				}
+
+				function primeSelectionFromCheckboxes() {
+					$container.find('[data-history-select]').each(function() {
+						var $checkbox = $(this);
+						var $item = $checkbox.closest('[data-history-item]');
+						var key = getKeyFromItem($item);
+
+						if (!key)
+							return;
+
+						if ($checkbox.is(':checked'))
+							selectedSet[key] = true;
+					});
+				}
 
 				function getKeyFromItem($item) {
 					return ($item && $item.attr('data-href')) || '';
@@ -577,14 +604,25 @@
 						var key = getKeyFromItem($item);
 						var isSelected = !!selectedSet[key];
 						$item.toggleClass(rowSelectedClass, isSelected);
+						$item.attr('aria-selected', isSelected ? 'true' : 'false');
+					});
+
+					$container.find('[data-history-select]').each(function() {
+						var $checkbox = $(this);
+						var $item = $checkbox.closest('[data-history-item]');
+						var key = getKeyFromItem($item);
+						var isSelected = !!selectedSet[key];
+						syncCheckboxState($checkbox, isSelected);
 					});
 
 					if (n > 0) {
 						$count.text(n);
-						$selectionBar.removeAttr('hidden').addClass('is-active');
+						$selectionBar.removeAttr('hidden').addClass('is-active').attr('aria-hidden', 'false');
+						$body.addClass('history-selection-active');
 					} else {
 						$count.text('0');
-						$selectionBar.attr('hidden', 'hidden').removeClass('is-active');
+						$selectionBar.attr('hidden', 'hidden').removeClass('is-active').attr('aria-hidden', 'true');
+						$body.removeClass('history-selection-active');
 					}
 				}
 
@@ -596,18 +634,37 @@
 					if (!key)
 						return;
 
-					if ($cb.is(':checked')) {
+					var isChecked = $cb.is(':checked');
+
+					if (isChecked) {
 						selectedSet[key] = true;
-						$item.addClass(rowSelectedClass);
 					}
 					else {
 						delete selectedSet[key];
-						$item.removeClass(rowSelectedClass);
 					}
 
+					syncCheckboxState($cb, isChecked);
 					updateSelectionUI();
 				});
 
+				$container.off('click.pagehistoryrow').on('click.pagehistoryrow', '[data-history-item]', function(event) {
+					var $target = $(event.target);
+
+					if ($target.closest('a, button, [data-history-select], label, input').length)
+						return;
+
+					var $item = $(this);
+					var $cb = $item.find('[data-history-select]').first();
+
+					if (!$cb.length)
+						return;
+
+					var newState = !$cb.is(':checked');
+					$cb.prop('checked', newState).trigger('change');
+				});
+
+				ensureDecoratedCheckboxes();
+				primeSelectionFromCheckboxes();
 				$container.off('click.pagehistoryopen').on('click.pagehistoryopen', '[data-history-open]', function(event) {
 					event.preventDefault();
 					var urls = Object.keys(selectedSet).filter(function(k) { return !!selectedSet[k]; });
@@ -615,9 +672,75 @@
 					if (!urls.length)
 						return;
 
-					// Open each in a new tab/window.
+					// Open each in a new tab/window. Try window.open first, fall back to anchor clicks if blocked.
 					urls.forEach(function(u) {
-						try { window.open(u, '_blank', 'noopener'); } catch (err) {}
+						var success = false;
+
+						if (window.console && console.log) {
+							console.log('[HistorySelection] Trying to open URL:', u);
+						}
+
+						var opened = null;
+
+						try {
+							opened = window.open('about:blank', '_blank');
+
+							if (opened) {
+								try { opened.opener = null; } catch (noop) {}
+								success = true;
+
+								try {
+									opened.location = u;
+								}
+								catch (errSet) {
+									if (console && console.warn)
+										console.warn('[HistorySelection] Failed to set location on opened window, falling back:', u, errSet);
+									success = false;
+								}
+
+								if (console && console.log)
+									console.log('[HistorySelection] window.open succeeded for:', u);
+							}
+						}
+						catch (err) {
+							opened = null;
+
+							if (console && console.warn)
+								console.warn('[HistorySelection] window.open threw for:', u, err);
+						}
+
+						if (success) {
+							return;
+						}
+
+						var link = document.createElement('a');
+						link.href = u;
+						link.target = '_blank';
+						link.rel = 'noopener noreferrer';
+						link.style.position = 'absolute';
+						link.style.width = '1px';
+						link.style.height = '1px';
+						link.style.overflow = 'hidden';
+						link.style.clip = 'rect(0 0 0 0)';
+						document.body.appendChild(link);
+
+						link.dispatchEvent(new MouseEvent('click', {
+							view: window,
+							bubbles: true,
+							cancelable: true
+						}));
+						success = true;
+
+						if (console && console.log)
+							console.log('[HistorySelection] Fallback anchor click dispatched for:', u);
+
+						requestAnimationFrame(function() {
+							if (link && link.parentNode)
+								link.parentNode.removeChild(link);
+						});
+
+						if (!success && console && console.error)
+							console.error('[HistorySelection] Unable to open URL:', u);
 					});
 				});
 
