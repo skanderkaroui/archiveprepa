@@ -409,6 +409,9 @@
 			}
 
 			function ensureContainer() {
+				if (slug === 'index')
+					return $();
+
 				var $home = $('#home.panel');
 
 				if (!$home.length)
