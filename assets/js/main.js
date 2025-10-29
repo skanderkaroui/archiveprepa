@@ -681,10 +681,6 @@
 					urls.forEach(function(u) {
 						var success = false;
 
-						if (window.console && console.log) {
-							console.log('[HistorySelection] Trying to open URL:', u);
-						}
-
 						var opened = null;
 
 						try {
@@ -698,20 +694,12 @@
 									opened.location = u;
 								}
 								catch (errSet) {
-									if (console && console.warn)
-										console.warn('[HistorySelection] Failed to set location on opened window, falling back:', u, errSet);
 									success = false;
 								}
-
-								if (console && console.log)
-									console.log('[HistorySelection] window.open succeeded for:', u);
 							}
 						}
 						catch (err) {
 							opened = null;
-
-							if (console && console.warn)
-								console.warn('[HistorySelection] window.open threw for:', u, err);
 						}
 
 						if (success) {
@@ -736,16 +724,10 @@
 						}));
 						success = true;
 
-						if (console && console.log)
-							console.log('[HistorySelection] Fallback anchor click dispatched for:', u);
-
 						requestAnimationFrame(function() {
 							if (link && link.parentNode)
 								link.parentNode.removeChild(link);
 						});
-
-						if (!success && console && console.error)
-							console.error('[HistorySelection] Unable to open URL:', u);
 					});
 				});
 
