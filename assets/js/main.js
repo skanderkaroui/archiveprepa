@@ -432,6 +432,7 @@
 							'<h3 class="panel-history__title">Consultés récemment</h3>' +
 						'</div>' +
 						'<div class="panel-history__selection" data-history-selection hidden aria-hidden="true">' +
+							'<button type="button" class="panel-history__selection-cancel" data-history-cancel aria-label="Annuler la sélection"></button>' +
 							'<span class="panel-history__selection-label">Sélectionnés&nbsp;<span class="panel-history__selection-count" data-history-selection-count>0</span></span>' +
 							'<div class="panel-history__selection-actions">' +
 								'<button type="button" class="panel-history__select-open" data-history-open>Ouvrir</button>' +
@@ -750,6 +751,18 @@
 					selectedSet = Object.create(null);
 					selectedCount = 0;
 					renderHistory();
+				});
+
+				$container.off('click.pagehistorycancel').on('click.pagehistorycancel', '[data-history-cancel]', function(event) {
+					event.preventDefault();
+
+					$container.find('[data-history-item]').each(function() {
+						applySelectionState($(this), false);
+					});
+
+					selectedSet = Object.create(null);
+					selectedCount = 0;
+					updateSelectionSummary();
 				});
 
 				updateSelectionSummary();

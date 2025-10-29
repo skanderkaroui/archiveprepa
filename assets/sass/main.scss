@@ -1228,7 +1228,7 @@
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			gap: 0.75em;
+			gap: 0.85em;
 			width: min(640px, calc(100% - 2.5rem));
 			background: rgba(248, 249, 250, 0.98);
 			border: 1px solid rgba(207, 212, 220, 0.9);
@@ -1269,6 +1269,8 @@
 			color: #2c2c2c;
 			display: inline-flex;
 			align-items: center;
+			flex: 1;
+			min-width: 0;
 		}
 
 		&__selection-count {
@@ -1282,6 +1284,68 @@
 			background: #e4e7eb;
 			color: #202124;
 			font-weight: 600;
+		}
+
+		&__selection-cancel {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 1.9em;
+			height: 1.9em;
+			border-radius: 999px;
+			border: 0;
+			background: transparent;
+			cursor: pointer;
+			position: relative;
+			opacity: 0.35;
+			@include vendor('transition', (
+				'opacity 0.15s ease',
+				'transform 0.15s ease'
+			));
+
+			&::before,
+			&::after {
+				content: '';
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				width: 2px;
+				height: 1.65em;
+				background-color: #5f6368;
+				@include vendor('transform', 'translate(-50%, -50%) rotate(45deg)');
+				@include vendor('transition', 'background-color 0.15s ease');
+			}
+
+			&::after {
+				@include vendor('transform', 'translate(-50%, -50%) rotate(-45deg)');
+			}
+
+			&:hover {
+				background: transparent;
+				opacity: 0.85;
+
+				&::before,
+				&::after {
+					background-color: #202124;
+				}
+			}
+
+			&:active {
+				background: transparent;
+				transform: scale(0.94);
+			}
+
+			&:focus-visible {
+				background: transparent;
+				outline: 2px solid rgba(26, 115, 232, 0.35);
+				outline-offset: 2px;
+				opacity: 1;
+
+				&::before,
+				&::after {
+					background-color: #202124;
+				}
+			}
 		}
 
 		&__selection-actions {
