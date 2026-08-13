@@ -2,7 +2,8 @@
   "name": "archiveprepa",
   "compatibility_date": "2026-08-13",
   "assets": {
-    "directory": "./"
+    "directory": "./",
+    "html_handling": "none"
   },
   "observability": {
     "enabled": false,
