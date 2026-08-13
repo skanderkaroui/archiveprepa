@@ -1,0 +1,9 @@
+# Same syntax as .gitignore. Keeps repo plumbing and CSS sources off the public site.
+.git
+.github
+.gitignore
+.assetsignore
+wrangler.jsonc
+.env
+*.md
+assets/sass
